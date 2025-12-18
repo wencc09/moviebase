@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MovieBase</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin:0; background:#f6f7fb; }
+    header { padding:16px; background:#fff; border-bottom:1px solid #eee; position: sticky; top:0; }
+    main { max-width: 980px; margin: 0 auto; padding:16px; display:grid; gap:12px; }
+    @media (min-width: 900px){ main{ grid-template-columns: 360px 1fr; align-items:start; } }
+    .card { background:#fff; border:1px solid #eee; border-radius:14px; padding:14px; }
+    h1 { margin:0 0 6px; font-size:18px; }
+    .muted { color:#666; font-size:12px; }
+    label { display:block; margin-top:10px; font-size:12px; color:#333; }
+    input, select, textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; }
+    textarea { min-height: 80px; resize: vertical; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    button { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+    button.primary { background:#111; color:#fff; border-color:#111; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #eee; font-size:13px; vertical-align:top; }
+    th { color:#555; font-weight:600; }
+    .thumb { width:56px; height:56px; object-fit:cover; border-radius:10px; border:1px solid #eee; background:#f3f3f3; }
+    .status { margin-top:10px; font-size:12px; }
+    .ok { color:#0a7a2f; }
+    .err { color:#b00020; }
+    .post {background:#fff;
+           border:1px solid #eee;
+           border-radius:16px;
+           overflow:hidden;}
+
+    .post-head {
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                padding:12px 12px 10px;
+    }
+
+    .post-user {
+            display:flex;
+            gap:10px;
+            align-items:center;
+    }
+
+    .avatar {
+        width:34px;
+        height:34px;
+        border-radius:999px;
+        background:#f0f0f0;
+        border:1px solid #eee;
+        display:flex;
+         align-items:center;
+         justify-content:center;
+         font-size:14px;
+    }   
+
+    .post-title {
+        font-weight:800;
+        font-size:14px;
+    }
+
+    .post-sub {
+        font-size:12px;
+        color:#666;
+    }
+
+    .post-img {
+        width:100%;
+        display:block;
+        background:#f3f3f3;
+        max-height:520px;
+        object-fit:cover;
+    }
+
+    .post-body {
+        padding:12px;
+        display:grid;
+        gap:8px;
+    }
+
+    .post-actions {
+        display:flex;
+        gap:10px;
+        align-items:center;
+        padding:10px 12px 0;
+    }
+
+    .iconbtn {
+        border:1px solid #eee;
+        background:#fff;
+        padding:8px 10px;
+        border-radius:999px;
+        font-size:12px;
+    }
+
+    .badges {
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+    }
+
+    .badge {
+        border:1px solid #eee;
+        background:#fafafa;
+        padding:4px 8px;
+        border-radius:999px;
+        font-size:12px;
+        color:#333;
+    }
+
+    .post-text {
+        white-space:pre-wrap;
+        line-height:1.5;
+        font-size:13px;
+    }
+
+    .post-meta {
+        font-size:12px;
+        color:#666;
+    }
+    /* Tabs：手機可左右滑（伸縮），桌機也好看 */
+    .tabs{
+        margin-top:12px;
+        display:flex;
+        gap:8px;
+        overflow-x:auto;
+        padding-bottom:6px;
+        -webkit-overflow-scrolling: touch;
+     }
+    .tab{
+        white-space:nowrap;
+        border:1px solid #eee;
+        background:#fff;
+        padding:8px 12px;
+        border-radius:999px;
+        font-size:13px;
+    }
+    .tab.is-active{
+        background:#111;
+        color:#fff;
+        border-color:#111;
+        }
+
+    /* 小螢幕：只顯示一個面板（用 tabs 切換） */
+    @media (max-width: 899px){
+        main{ grid-template-columns: 1fr; }
+    }
+
+    /* About 卡片內容 */
+    .about{
+        margin-top:12px;
+        border-top:1px solid #eee;
+        padding-top:12px;
+    }
+
+    
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>MovieBase｜電影/影集收藏</h1>
+    <div class="muted">新增、心得、評分、日期、照片（照片存 Drive，Sheet 存 photoUrl）</div>
+    <div class="tabs" id="tabs">
+    <button class="tab is-active" data-tab="feed">貼文牆</button>
+    <button class="tab" data-tab="create">新增貼文</button>
+    <button class="tab" data-tab="about">關於</button>
+  </div>
+
+  </header>
+
+  <main>
+    <!-- 新增 -->
+    <section class="card" id="panelCreate">
+      <h2 style="margin:0 0 8px;font-size:16px;">新增收藏</h2>
+
+      <label>片名（必填）</label>
+      <input id="title" placeholder="例如：進擊的巨人" />
+
+      <div class="row">
+        <div>
+          <label>類型</label>
+          <select id="category">
+            <option value="電影">電影</option>
+            <option value="影集">影集</option>
+            <option value="動畫">動畫</option>
+            <option value="動畫電影">動畫電影</option>
+          </select>
+        </div>
+        <div>
+          <label>平台</label>
+          <select id="platform">
+            <option value="Netflix">Netflix</option>
+            <option value="Disney+">Disney+</option>
+            <option value="YouTube">YouTube</option>
+            <option value="bilibili">bilibili</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>評分（1~10）</label>
+          <input id="rating" type="number" min="1" max="10" value="8" />
+        </div>
+        <div>
+          <label>觀看日期</label>
+          <input id="watchDate" type="date" />
+        </div>
+      </div>
+
+      <label>心得</label>
+      <textarea id="review" placeholder="寫下你的感想…"></textarea>
+
+      <label>備註</label>
+      <input id="note" placeholder="例如：推薦給朋友 / 想二刷" />
+
+      <!-- ✅ 照片功能：選照片 + 預覽 -->
+      <label>上傳照片（海報/截圖，可選）</label>
+      <input id="photo" type="file" accept="image/*" />
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+        <img id="photoPreview" class="thumb" alt="" />
+        <div class="muted">建議小於 500KB（上傳更穩）。</div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="primary" id="btnCreate">新增</button>
+        <button id="btnReload" type="button">重新整理</button>
+      </div>
+
+      <div id="status" class="status muted"></div>
+    </section>
+
+    <!-- 列表 -->
+   <section class="card" id="panelFeed">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <h2 style="margin:0;font-size:16px;">我的收藏</h2>
+        <span class="muted" id="count"></span>
+        <div style="flex:1"></div>
+        <input id="q" placeholder="搜尋片名…" style="max-width:260px;" />
+      </div>
+
+     <div id="feed" style="margin-top:12px; display:grid; gap:12px;"></div>
+     <div id="singleWrap" style="display:none; margin-top:12px;"></div>
+     
+     <div id="panelAbout" class="about" style="display:none;">
+        <h3 style="margin:0 0 6px;">關於 MovieBase</h3>
+        <div class="muted">
+         這是電影/影集交流貼文牆：可上傳照片、寫心得、分享連結。
+         之後可加：帳號、留言、按讚、追蹤。
+        </div>
+
+        <details style="margin-top:10px;">
+            <summary class="muted" style="cursor:pointer;">進階功能（可折疊）</summary>
+            <div style="margin-top:8px; display:grid; gap:8px;">
+                <div class="muted">✅ 分享：每篇貼文有 id，可用 ?id=xxx 打開單篇</div>
+                <div class="muted">🚧 留言：下一步可做 comments 表</div>
+                <div class="muted">🚧 按讚：下一步可做 likes 記錄</div>
+            </div>
+        </details>
+    </div>
+    </section>
+  </main>
+
+  <script>
+    // ✅ 改成你的 /exec 主網址（不要加 ?action=list）
+    const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxXHe2vAQaU0owUnjj8i8GQj_VRdfnBSEmYFdipFK6lKuvYxJvp3MpHQUGWRJRhgQ/exec";
+
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(msg, type="muted") {
+      const el = $("status");
+      el.className = "status " + (type === "ok" ? "ok" : type === "err" ? "err" : "muted");
+      el.textContent = msg || "";
+    }
+
+    function todayISO() {
+      const d = new Date();
+      const z = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+    }
+
+    // ✅ 照片：File -> Base64(dataURL)
+    async function fileToBase64(file) {
+      if (!file) return "";
+      const reader = new FileReader();
+      return await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result); // data:image/...;base64,xxxx
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function apiGET(params) {
+      const url = new URL(GAS_WEBAPP_URL);
+      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+      const res = await fetch(url.toString());
+      return await res.json();
+    }
+
+    async function apiPOST(payload) {
+      // 用 text/plain 避免 CORS preflight（新手最穩）
+      const res = await fetch(GAS_WEBAPP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+      return await res.json();
+    }
+
+    let allRows = [];
+
+    function escapeHtml(str) {
+      return (str ?? "").toString().replace(/[&<>"']/g, (m) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[m]));
+    }
+    function fmtTS(ts) {
+        if (!ts) return "";
+        const d = new Date(ts);
+        return d.toLocaleString("zh-TW", { hour12: false });
+    }
+
+    function getQueryId() {
+        const p = new URLSearchParams(location.search);
+        return p.get("id");
+    }
+
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            setStatus("已複製分享連結 ✅", "ok");
+        } catch {
+            
+        prompt("複製這個連結分享：", text);
+        }
+    }
+
+
+   function renderFeed(rows) {
+        const feed = $("feed");
+        const singleWrap = $("singleWrap");
+
+            // feed 模式顯示、single 隱藏（如果現在不是單篇）
+        feed.style.display = "grid";
+        singleWrap.style.display = "none";
+        singleWrap.innerHTML = "";
+
+        feed.innerHTML = "";
+
+        // 依時間新到舊排序（ts 越新越前面）
+        const sorted = [...rows].sort((a, b) => new Date(b.ts) - new Date(a.ts));
+        sorted.forEach(r => {
+            const card = document.createElement("div");
+            card.className = "post";
+
+            const avatarChar = (r.title || "?").trim().slice(0, 1);
+
+            // 如果沒有照片，仍然可發文：用灰底佔位
+            const imgHtml = r.photoUrl
+                ? `<img class="post-img" src="${escapeHtml(r.photoUrl)}" alt="">`
+                : `<div style="height:260px;background:#f3f3f3;"></div>`;
+
+            const shareLink = `${location.origin}${location.pathname}?id=${encodeURIComponent(r.id)}`;
+
+            card.innerHTML = `
+                <div class="post-head">
+                    <div class="post-user">
+                        <div class="avatar">${escapeHtml(avatarChar)}</div>
+                        <div>
+                            <div class="post-title">${escapeHtml(r.title)}</div>
+                            <div class="post-sub">${escapeHtml(r.category)}・${escapeHtml(r.platform)}・評分 ${escapeHtml(r.rating)}/10</div>
+                        </div>
+                    </div>
+                    <div class="post-sub">${escapeHtml(fmtTS(r.ts))}</div>
+                </div>
+
+            ${imgHtml}
+
+            <div class="post-actions">
+                <button class="iconbtn" data-like="${escapeHtml(r.id)}">❤️ Like（加分用）</button>
+                <button class="iconbtn" data-comment="${escapeHtml(r.id)}">💬 Comment（下階段）</button>
+                <button class="iconbtn" data-share="${escapeHtml(r.id)}">🔗 Share</button>
+                <a class="iconbtn" href="?id=${encodeURIComponent(r.id)}" style="text-decoration:none; color:inherit;">🔎 看貼文</a>
+            </div>
+
+            <div class="post-body">
+                <div class="badges">
+                    <span class="badge">日期 ${escapeHtml(r.watchDate || "")}</span>
+                    <span class="badge">ID ${escapeHtml(r.id)}</span>
+                </div>
+
+                <div class="post-text">${escapeHtml(r.review || "")}</div>
+                <div class="post-meta">${escapeHtml(r.note || "")}</div>
+            </div>
+            `;
+
+            // 綁定 share 按鈕
+            card.querySelector("[data-share]").addEventListener("click", () => {
+                copyToClipboard(shareLink);
+            });
+
+            // Like/Comment 先做示意（不寫入資料庫）
+            card.querySelector("[data-like]").addEventListener("click", () => {
+                setStatus("（Demo）按讚成功：之後可做 likes 記錄到 Sheet", "ok");
+            });
+            card.querySelector("[data-comment]").addEventListener("click", () => {
+                setStatus("（Demo）留言功能下一階段會加：comments 表", "ok");
+            });
+
+            feed.appendChild(card);
+        });
+
+        $("count").textContent = `共 ${sorted.length} 筆`;
+    }
+
+
+    function applyFilter() {
+      const q = $("q").value.trim().toLowerCase();
+      const rows = q ? allRows.filter(r => (r.title || "").toLowerCase().includes(q)) : allRows;
+      renderFeed(rows);
+
+    }
+
+    async function loadList() {
+        setStatus("載入中…");
+        try {
+            const data = await apiGET({ action: "list" });
+            if (!data.ok) throw new Error(data.error || "list failed");
+            allRows = data.rows || [];
+
+            // ✅ 改成用貼文牆渲染
+            renderFeed(allRows);
+
+            setStatus("載入完成", "ok");
+        } catch (e) {
+        console.error(e);
+        setStatus("載入失敗：請確認 GAS_WEBAPP_URL 是否正確", "err");
+        }
+        
+
+    }
+
+        async function loadSingle(id) {
+    setStatus("載入貼文中…");
+    try {
+        const data = await apiGET({ action: "get", id });
+        if (!data.ok) throw new Error(data.error || "get failed");
+        const r = data.row;
+
+        $("feed").style.display = "none";
+        const singleWrap = $("singleWrap");
+        singleWrap.style.display = "block";
+
+        if (!r) {
+            singleWrap.innerHTML = `<div class="muted">找不到這篇貼文（id=${escapeHtml(id)}）</div>`;
+            setStatus("找不到貼文", "err");
+            return;
+        }
+
+        const shareLink = `${location.origin}${location.pathname}?id=${encodeURIComponent(r.id)}`;
+        const imgHtml = r.photoUrl
+            ? `<img class="post-img" src="${escapeHtml(r.photoUrl)}" alt="">`
+            : `<div style="height:260px;background:#f3f3f3;"></div>`;
+
+        singleWrap.innerHTML = `
+            <div class="post">
+                <div class="post-head">
+                    <div>
+                        <div class="post-title">${escapeHtml(r.title)}</div>
+                        <div class="post-sub">${escapeHtml(r.category)}・${escapeHtml(r.platform)}・評分 ${escapeHtml(r.rating)}/10</div>
+                    </div>
+                    <div class="post-sub">${escapeHtml(fmtTS(r.ts))}</div>
+                </div>
+
+            ${imgHtml}
+
+            <div class="post-actions">
+                <button class="iconbtn" id="singleShare">🔗 Share</button>
+                <a class="iconbtn"href="./" " style="text-decoration:none; color:inherit;">⬅ 回到貼文牆</a>
+            </div>
+
+            <div class="post-body">
+                <div class="badges">
+                    <span class="badge">日期 ${escapeHtml(r.watchDate || "")}</span>
+                    <span class="badge">ID ${escapeHtml(r.id)}</span>
+                </div>
+                <div class="post-text">${escapeHtml(r.review || "")}</div>
+                <div class="post-meta">${escapeHtml(r.note || "")}</div>
+            </div>
+        </div>
+    `;
+
+    $("singleShare").addEventListener("click", () => copyToClipboard(shareLink));
+    setStatus("貼文載入完成", "ok");
+}   catch (e) {
+    console.error(e);
+    setStatus("載入貼文失敗", "err");
+    }
+ }
+
+
+    async function createRow() {
+      const title = $("title").value.trim();
+      if (!title) return setStatus("片名必填", "err");
+
+      $("btnCreate").disabled = true;
+      setStatus("新增中…");
+
+      try {
+        // ✅ 讀照片（可空）
+        const photoBase64 = await fileToBase64($("photo").files[0]);
+
+        const payload = {
+          action: "create",
+          title,
+          category: $("category").value,
+          platform: $("platform").value,
+          rating: Number($("rating").value || 0),
+          watchDate: $("watchDate").value,
+          review: $("review").value,
+          note: $("note").value,
+          photo: photoBase64
+        };
+
+        const data = await apiPOST(payload);
+        if (!data.ok) throw new Error(data.error || "create failed");
+
+        setStatus("新增成功！", "ok");
+        $("title").value = "";
+        $("review").value = "";
+        $("note").value = "";
+        $("photo").value = "";
+        $("photoPreview").src = "";
+        await loadList();
+      } catch (e) {
+        console.error(e);
+        setStatus("新增失敗：請確認後端 create", "err");
+      } finally {
+        $("btnCreate").disabled = false;
+      }
+    }
+
+    // 事件
+    $("btnCreate").addEventListener("click", createRow);
+    $("btnReload").addEventListener("click", loadList);
+    $("q").addEventListener("input", applyFilter);
+    $("watchDate").value = todayISO();
+
+    // ✅ 選照片就預覽
+    $("photo").addEventListener("change", async () => {
+      const f = $("photo").files[0];
+      $("photoPreview").src = f ? await fileToBase64(f) : "";
+    });
+    
+    function setActiveTab(name){
+         // tabs 樣式
+        document.querySelectorAll(".tab").forEach(btn=>{
+            btn.classList.toggle("is-active", btn.dataset.tab === name);
+        });
+
+        const isMobile = window.matchMedia("(max-width: 899px)").matches;
+
+  // 三個面板
+        const panelCreate = document.getElementById("panelCreate");
+        const panelFeed = document.getElementById("panelFeed");
+        const panelAbout = document.getElementById("panelAbout");
+
+        if (!isMobile){
+            // 桌機：同時顯示新增 + 貼文牆；About 先藏在右邊卡片內，按 about 才顯示
+            panelCreate.style.display = "";
+            panelFeed.style.display = "";
+            panelAbout.style.display = (name === "about") ? "" : "none";
+            return;
+        }
+
+  // 手機：一次只顯示一個
+        if (name === "create"){
+        panelCreate.style.display = "";
+        panelFeed.style.display = "none";
+        } else if (name === "about"){
+        panelCreate.style.display = "none";
+        panelFeed.style.display = "";
+        panelAbout.style.display = "";
+        // 在 about 模式下，把 feed/單篇先藏起來，讓關於更乾淨
+        document.getElementById("feed").style.display = "none";
+        document.getElementById("singleWrap").style.display = "none";
+    }   else { // feed
+        panelCreate.style.display = "none";
+        panelFeed.style.display = "";
+        panelAbout.style.display = "none";
+        // 回到 feed 時，恢復 feed/單篇顯示邏輯
+        const id = getQueryId();
+        if (id) loadSingle(id);
+        else loadList();
+        }
+    }
+
+    // 點 tab 切換
+    document.getElementById("tabs").addEventListener("click", (e)=>{
+        const btn = e.target.closest(".tab");
+        if (!btn) return;
+        setActiveTab(btn.dataset.tab);
+    });
+
+    // 視窗大小改變時重新套用（手機/桌機切換會用到）
+    window.addEventListener("resize", ()=>{
+        const active = document.querySelector(".tab.is-active")?.dataset.tab || "feed";
+        setActiveTab(active);
+    });
+
+    const id = getQueryId();
+    if (id) loadSingle(id);
+    else loadList(); 
+    setActiveTab("feed");
+
+
+  </script>
+    
+</body>
+</html>
