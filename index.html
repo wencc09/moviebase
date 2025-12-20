@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MovieBase</title>
 
-  <!-- Google Sign-In (GIS) -->
+  <!-- ✅ Google Sign-In (GIS) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
@@ -34,7 +34,7 @@
 
     /* Feed post card */
     .post{background:#fff;border:1px solid #eee;border-radius:16px;overflow:hidden;}
-    .post-head{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 10px;}
+    .post-head{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 10px;gap:10px;}
     .post-user{display:flex;gap:10px;align-items:center;}
     .avatar{width:34px;height:34px;border-radius:999px;background:#f0f0f0;border:1px solid #eee;display:flex;align-items:center;justify-content:center;font-size:14px;}
     .post-title{font-weight:800;font-size:14px;}
@@ -58,8 +58,8 @@
 
     /* Login row */
     .loginRow{ display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
-    .userBox{ display:none; align-items:center; gap:8px; }
-    .userPic{ width:28px; height:28px; border-radius:999px; }
+    .userBadge{ font-size:12px;border:1px solid #eee;background:#fafafa;padding:4px 8px;border-radius:999px; }
+    .userPic{ width:28px; height:28px; border-radius:999px; display:none; }
   </style>
 </head>
 
@@ -74,10 +74,17 @@
       <button class="tab" data-tab="about" type="button">關於</button>
     </div>
 
-    <!-- ✅ Login (Tabs 外面，避免被 overflow 擋住) -->
-    <div class="loginRow">
-      <div id="gsiBtn"></div>
-      <div id="userBox" class="userBox">
+    <!-- ✅ Login（放在 tabs 外面，避免 overflow 擋住） -->
+    <div class="loginRow" id="loginRow">
+      <!-- 未登入：兩種登入 -->
+      <div id="loginButtons" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button id="btnGuest" type="button">訪客登入</button>
+        <div id="gsiBtn"></div>
+      </div>
+
+      <!-- 已登入：顯示身分 -->
+      <div id="userBox" style="display:none; align-items:center; gap:8px;">
+        <span id="userBadge" class="userBadge"></span>
         <img id="userPic" class="userPic" alt="" />
         <div class="muted" id="userName"></div>
         <button id="btnLogout" type="button">登出</button>
@@ -165,29 +172,24 @@
           這是電影/影集交流貼文牆：可上傳照片、寫心得、分享連結。
           之後可加：帳號、留言、按讚、追蹤。
         </div>
-
-        <details style="margin-top:10px;">
-          <summary class="muted" style="cursor:pointer;">進階功能（可折疊）</summary>
-          <div style="margin-top:8px; display:grid; gap:8px;">
-            <div class="muted">✅ 分享：每篇貼文有 id，可用 ?id=xxx 打開單篇</div>
-            <div class="muted">🚧 留言：下一步可做 comments 表</div>
-            <div class="muted">🚧 按讚：下一步可做 likes 記錄</div>
-          </div>
-        </details>
       </div>
     </section>
   </main>
 
   <script>
     /* =========================
-       ✅ 1) 基本設定（先放最上面）
+       ✅ 0) 你只需要改這兩個
     ========================= */
 
-    // 改成你的 Apps Script /exec（你原本那條即可）
+    // ✅ 改成你的 Apps Script /exec
     const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxXHe2vAQaU0owUnjj8i8GQj_VRdfnBSEmYFdipFK6lKuvYxJvp3MpHQUGWRJRhgQ/exec";
 
-    // 你的 Google Client ID（你原本那串即可）
+    // ✅ 改成你的 Google Client ID
     const GOOGLE_CLIENT_ID = "709445153038-ap51j4ucakhnlvdpha2cc05urj4hact3.apps.googleusercontent.com";
+
+    /* =========================
+       ✅ 1) 工具函式 + API
+    ========================= */
 
     const $ = (id) => document.getElementById(id);
 
@@ -255,54 +257,130 @@
     }
 
     /* =========================
-       ✅ 2) Google 登入（穩定版）
+       ✅ 2) 登入（訪客 / Google）
     ========================= */
 
-    function showLoggedIn(user) {
-      $("gsiBtn").style.display = "none";
+    function setAuthUI(user) {
+      if (!user) {
+        $("loginButtons").style.display = "flex";
+        $("userBox").style.display = "none";
+        $("userName").textContent = "";
+        $("userBadge").textContent = "";
+        $("userPic").style.display = "none";
+        $("userPic").src = "";
+        return;
+      }
+
+      $("loginButtons").style.display = "none";
       $("userBox").style.display = "flex";
-      $("userName").textContent = user.name || user.email || "";
-      $("userPic").src = user.picture || "";
+
+      if (user.type === "guest") {
+        $("userBadge").textContent = "訪客";
+        $("userName").textContent = user.name || "訪客";
+        $("userPic").style.display = "none";
+        $("userPic").src = "";
+      }
+
+      if (user.type === "google") {
+        $("userBadge").textContent = "Google";
+        $("userName").textContent = user.name || user.email || "Google 使用者";
+        if (user.picture) {
+          $("userPic").style.display = "block";
+          $("userPic").src = user.picture;
+        } else {
+          $("userPic").style.display = "none";
+          $("userPic").src = "";
+        }
+      }
     }
 
-    function showLoggedOut() {
-      $("gsiBtn").style.display = "block";
-      $("userBox").style.display = "none";
+    function getCurrentUser() {
+      const googleUser = localStorage.getItem("user_google");
+      if (googleUser) return JSON.parse(googleUser);
+      const guestUser = localStorage.getItem("user_guest");
+      if (guestUser) return JSON.parse(guestUser);
+      return null;
     }
 
-    async function restoreLogin() {
+    function logoutAll() {
+      localStorage.removeItem("user_google");
+      localStorage.removeItem("id_token");
+      localStorage.removeItem("user_guest");
+      if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+      setAuthUI(null);
+    }
+
+    async function loginAsGuest() {
+      const name = prompt("請輸入訪客暱稱（可空白）", "訪客") || "訪客";
+      const user = { type: "guest", name };
+      localStorage.setItem("user_guest", JSON.stringify(user));
+      localStorage.removeItem("user_google");
+      localStorage.removeItem("id_token");
+      setAuthUI(user);
+    }
+
+    async function restoreGoogleLoginIfAny() {
       const idToken = localStorage.getItem("id_token");
-      if (!idToken) return showLoggedOut();
+      if (!idToken) return false;
 
       try {
         const data = await apiPOST({ action: "me", idToken });
         if (!data.ok) throw new Error(data.error || "me failed");
-        showLoggedIn(data.user);
-      } catch (e) {
-        console.error(e);
+        const user = { type: "google", ...data.user };
+        localStorage.setItem("user_google", JSON.stringify(user));
+        localStorage.removeItem("user_guest");
+        setAuthUI(user);
+        return true;
+      } catch {
         localStorage.removeItem("id_token");
-        showLoggedOut();
+        localStorage.removeItem("user_google");
+        return false;
       }
     }
 
-    function initGoogleLogin() {
-      // 防呆：避免 google 還沒載好導致整站掛掉
-      if (!window.google || !google.accounts?.id) {
-        console.warn("Google SDK not ready");
-        return;
-      }
+    function initGoogleLoginButton() {
+      if (!window.google?.accounts?.id) return false;
 
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (resp) => {
           localStorage.setItem("id_token", resp.credential);
-          await restoreLogin();
+
+          const data = await apiPOST({ action: "me", idToken: resp.credential });
+          if (!data.ok) {
+            alert("Google 登入驗證失敗：請確認後端 action=me");
+            localStorage.removeItem("id_token");
+            return;
+          }
+
+          const user = { type: "google", ...data.user };
+          localStorage.setItem("user_google", JSON.stringify(user));
+          localStorage.removeItem("user_guest");
+          setAuthUI(user);
         },
       });
 
       google.accounts.id.renderButton($("gsiBtn"), { theme: "outline", size: "large" });
+      return true;
+    }
 
-      restoreLogin();
+    async function bootAuth() {
+      // 先顯示目前狀態（例如已登入訪客）
+      setAuthUI(getCurrentUser());
+
+      $("btnGuest").addEventListener("click", loginAsGuest);
+      $("btnLogout").addEventListener("click", logoutAll);
+
+      // 嘗試恢復 Google
+      await restoreGoogleLoginIfAny();
+
+      // 等 Google SDK ready（async defer）
+      let tries = 0;
+      const timer = setInterval(() => {
+        tries++;
+        const ok = initGoogleLoginButton();
+        if (ok || tries > 30) clearInterval(timer);
+      }, 200);
     }
 
     /* =========================
@@ -367,6 +445,12 @@
       });
 
       $("count").textContent = `共 ${sorted.length} 筆`;
+    }
+
+    function applyFilter() {
+      const q = $("q").value.trim().toLowerCase();
+      const rows = q ? allRows.filter(r => (r.title || "").toLowerCase().includes(q)) : allRows;
+      renderFeed(rows);
     }
 
     async function loadList() {
@@ -441,14 +525,8 @@
       }
     }
 
-    function applyFilter() {
-      const q = $("q").value.trim().toLowerCase();
-      const rows = q ? allRows.filter(r => (r.title || "").toLowerCase().includes(q)) : allRows;
-      renderFeed(rows);
-    }
-
     /* =========================
-       ✅ 4) Create
+       ✅ 4) Create（目前不限制登入，下一步再加）
     ========================= */
 
     async function createRow() {
@@ -535,10 +613,10 @@
     }
 
     /* =========================
-       ✅ 6) 啟動（等頁面載完）
+       ✅ 6) 啟動
     ========================= */
 
-    window.addEventListener("load", () => {
+    window.addEventListener("load", async () => {
       $("watchDate").value = todayISO();
 
       $("photo").addEventListener("change", async () => {
@@ -561,16 +639,10 @@
         setActiveTab(active);
       });
 
-      $("btnLogout").addEventListener("click", () => {
-        if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
-        localStorage.removeItem("id_token");
-        showLoggedOut();
-      });
+      // ✅ 啟動登入（訪客/Google）
+      await bootAuth();
 
-      // 初始化登入（若 SDK 還沒 ready，不會讓整站掛）
-      initGoogleLogin();
-
-      // 載入：單篇 or feed
+      // ✅ 載入貼文：單篇 or feed
       const id = getQueryId();
       if (id) loadSingle(id);
       else loadList();
